@@ -1,0 +1,52 @@
+name: Build image
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      # Armbian needs tens of GB; the runner has ~14 GB free
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force
+          df -h /
+
+      # registers qemu for arm64 in the runner's kernel; Armbian's container cannot do it itself
+      - uses: docker/setup-qemu-action@v3
+
+      - name: Build
+        run: ./build.sh COMPRESS_OUTPUTIMAGE=sha,img,xz
+
+      - name: Collect image
+        id: image
+        run: |
+          ls -la armbian_build/output/images
+          echo "name=$(basename armbian_build/output/images/*.img.xz .img.xz)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.image.outputs.name }}
+          path: |
+            armbian_build/output/images/*.img.xz
+            armbian_build/output/images/*.sha
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            armbian_build/output/images/*.img.xz
+            armbian_build/output/images/*.sha

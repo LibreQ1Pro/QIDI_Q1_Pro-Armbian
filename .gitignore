@@ -1,0 +1,5 @@
+/armbian_build/
+/output/
+/build.log
+/build.prev.log
+/userpatches/config-example.conf

@@ -1,0 +1,12 @@
+# Wi-Fi for the printer. Edit this file on any computer (it is on the FAT boot
+# partition), remove the # in front of the lines you need, save, and boot the
+# printer. It is read at every boot: change the lines to change the network,
+# clear SSID to forget it. Other networks (set in KlipperScreen or nmcli) are
+# not touched. The password is stored here as plain text.
+#
+#SSID="My network"
+#PASSWORD="my password"
+#
+# Optional: the country code (2 letters) for the Wi-Fi channels, and a hidden network
+#COUNTRY=US
+#HIDDEN=yes

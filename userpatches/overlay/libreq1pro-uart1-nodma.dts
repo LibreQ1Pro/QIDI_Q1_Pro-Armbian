@@ -1,0 +1,16 @@
+/dts-v1/;
+/plugin/;
+
+/* uart1 (the display) runs without DMA: with it, flashing the screen stalled the UART.
+ * See README, "uart1 without DMA". */
+/ {
+	compatible = "rockchip,rk3328";
+
+	fragment@0 {
+		target = <&uart1>;
+
+		__overlay__ {
+			dma-names = "tx-off", "rx-off";
+		};
+	};
+};

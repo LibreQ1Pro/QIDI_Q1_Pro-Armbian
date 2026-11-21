@@ -1,0 +1,2 @@
+# /dev/webcam: the capture node of the first USB camera. /dev/video0 is a hardware video decoder here.
+SUBSYSTEM=="video4linux", SUBSYSTEMS=="usb", ATTR{index}=="0", SYMLINK+="webcam"

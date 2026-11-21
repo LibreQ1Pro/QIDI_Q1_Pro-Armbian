@@ -1,0 +1,1 @@
+SUBSYSTEM=="tty", KERNEL=="ttyS[012]", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1"

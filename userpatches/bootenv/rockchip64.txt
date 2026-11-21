@@ -1,0 +1,5 @@
+verbosity=1
+bootlogo=false
+console=display
+user_overlays=libreq1pro-uart1-nodma
+extraargs=cpuidle.off=1 fbcon=font:6x10

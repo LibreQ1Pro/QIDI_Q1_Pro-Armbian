@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<labwc_config>
+  <!-- any GUD touch screen follows the display's output rotation -->
+  <touch mapToOutput="USB-1"/>
+</labwc_config>

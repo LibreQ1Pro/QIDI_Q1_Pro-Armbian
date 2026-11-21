@@ -1,0 +1,13 @@
+[Unit]
+Description=Wi-Fi from /boot/libreq1pro-wifi.txt
+After=NetworkManager.service
+Wants=NetworkManager.service
+RequiresMountsFor=/boot
+ConditionPathExists=/boot/libreq1pro-wifi.txt
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/libreq1pro-wifi
+
+[Install]
+WantedBy=multi-user.target

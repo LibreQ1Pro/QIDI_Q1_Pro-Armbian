@@ -1,0 +1,84 @@
+#!/bin/bash
+# Wi-Fi from /boot/libreq1pro-wifi.txt (or [file]), run at every boot by libreq1pro-wifi.service.
+# SSID set -> connection "libreq1pro-wifi" is created/updated; empty -> removed; no file -> untouched.
+set -u
+FILE=${1:-/boot/libreq1pro-wifi.txt}
+CON=libreq1pro-wifi
+STATE=/var/lib/libreq1pro-wifi/applied
+
+log() { echo "libreq1pro-wifi: $*"; }
+
+[ -f "$FILE" ] || exit 0
+
+SSID= PASSWORD= COUNTRY= HIDDEN=
+# key=value lines with optional quotes; CRLF and a BOM are tolerated. Parsed, never run.
+while IFS= read -r line || [ -n "$line" ]; do
+	line=${line%$'\r'}
+	line=${line#$'\xef\xbb\xbf'}
+	line=${line#"${line%%[![:space:]]*}"}
+	case "$line" in '' | '#'*) continue ;; esac
+	case "$line" in *=*) ;; *) continue ;; esac
+	key=${line%%=*}
+	val=${line#*=}
+	key=${key%"${key##*[![:space:]]}"}
+	val=${val#"${val%%[![:space:]]*}"}
+	val=${val%"${val##*[![:space:]]}"}
+	case "$val" in
+	\"*\") val=${val#\"}; val=${val%\"} ;;
+	\'*\') val=${val#\'}; val=${val%\'} ;;
+	esac
+	case "${key^^}" in
+	SSID) SSID=$val ;;
+	PASSWORD) PASSWORD=$val ;;
+	COUNTRY) COUNTRY=${val^^} ;;
+	HIDDEN) HIDDEN=${val,,} ;;
+	esac
+done < "$FILE"
+
+# NetworkManager may still be starting
+for _ in $(seq 30); do
+	nmcli -t general status >/dev/null 2>&1 && break
+	sleep 1
+done
+
+have=no
+nmcli -t -f NAME connection show 2>/dev/null | grep -qxF "$CON" && have=yes
+
+sum=$(printf '%s\n%s\n%s\n%s\n' "$SSID" "$PASSWORD" "$COUNTRY" "$HIDDEN" | sha256sum | cut -d ' ' -f 1)
+
+if [ -n "$COUNTRY" ] && command -v iw >/dev/null; then
+	iw reg set "$COUNTRY" 2>/dev/null || log "cannot set the country $COUNTRY"
+fi
+
+if [ -z "$SSID" ]; then
+	if [ "$have" = yes ]; then
+		nmcli connection delete id "$CON" >/dev/null && log "SSID is empty, connection removed"
+	fi
+	rm -f "$STATE"
+	exit 0
+fi
+
+if [ "$have" = yes ] && [ "$(cat "$STATE" 2>/dev/null)" = "$sum" ]; then
+	exit 0
+fi
+
+if [ -n "$PASSWORD" ] && ! { [ "${#PASSWORD}" -ge 8 ] && [ "${#PASSWORD}" -le 63 ]; } &&
+	! printf '%s' "$PASSWORD" | grep -qE '^[0-9a-fA-F]{64}$'; then
+	log "PASSWORD must have 8-63 characters (or 64 hex digits), not applied"
+	exit 1
+fi
+
+args=(type wifi con-name "$CON" ssid "$SSID" connection.autoconnect yes)
+[ "$HIDDEN" = yes ] && args+=(wifi.hidden yes)
+[ -n "$PASSWORD" ] && args+=(wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$PASSWORD")
+
+[ "$have" = yes ] && nmcli connection delete id "$CON" >/dev/null
+if nmcli connection add "${args[@]}" >/dev/null; then
+	mkdir -p "$(dirname "$STATE")"
+	echo "$sum" > "$STATE"
+	chmod 600 "$STATE"
+	log "connection for \"$SSID\" set"
+else
+	log "nmcli failed, not applied"
+	exit 1
+fi

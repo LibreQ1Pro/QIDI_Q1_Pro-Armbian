@@ -1,0 +1,2 @@
+# The panel of the gud-esp32s3 display is mounted rotated; the touch turns with the output.
+wlr-randr --output USB-1 --transform 90
